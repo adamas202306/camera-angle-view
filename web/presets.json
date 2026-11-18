@@ -1,0 +1,252 @@
+{
+  "Target": [
+    {
+      "name": "Human",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "190cm",
+      "max": "-",
+      "description": ""
+    },
+    {
+      "name": "Product",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "20cm",
+      "max": "-",
+      "description": ""
+    },
+    {
+      "name": "Place",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "190cm",
+      "max": "-",
+      "description": ""
+    }
+  ],
+  "Angle": [
+    {
+      "name": "Custom",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "-",
+      "max": "-",
+      "description": "카메라 앵글을 직접 조정해 주세요."
+    },
+    {
+      "name": "Bird's-eye-View",
+      "min_angle": "-50°",
+      "max_angle": "-90°",
+      "min": "200cm",
+      "max": "1000cm",
+      "description": ""
+    },
+    {
+      "name": "High Angle",
+      "min_angle": "-15°",
+      "max_angle": "-45°",
+      "min": "(A) + 30cm",
+      "max": "(A) + 300cm",
+      "description": ""
+    },
+    {
+      "name": "Slight High Angle",
+      "min_angle": "-10°",
+      "max_angle": "-20°",
+      "min": "(A) + 10cm",
+      "max": "(A) + 50cm",
+      "description": ""
+    },
+    {
+      "name": "Eye Level",
+      "min_angle": "0°",
+      "max_angle": "0°",
+      "min": "(A) - 10cm",
+      "max": "(A)",
+      "description": ""
+    },
+    {
+      "name": "Slight Low Angle",
+      "min_angle": "10°",
+      "max_angle": "20°",
+      "min": "(A) - 50cm",
+      "max": "(A) - 10cm",
+      "description": ""
+    },
+    {
+      "name": "Low Angle",
+      "min_angle": "15°",
+      "max_angle": "45°",
+      "min": "0cm",
+      "max": "(A) - 30cm",
+      "description": ""
+    },
+    {
+      "name": "Worm's-eye-View",
+      "min_angle": "50°",
+      "max_angle": "90°",
+      "min": "0cm",
+      "max": "10cm",
+      "description": ""
+    }
+  ],
+  "360Angle": [
+    {
+      "name": "Custom",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "-",
+      "max": "",
+      "description": "카메라 위치를 직접 조정해 주세요."
+    },
+    {
+      "name": "Front",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "0°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Front-Right",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "45°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Right",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "90°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Rear-Right",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "135°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Back",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "180°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Rear-Left",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "225°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Left",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "270°",
+      "max": "",
+      "description": ""
+    },
+    {
+      "name": "Front-Left",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "315°",
+      "max": "",
+      "description": ""
+    }
+  ],
+  "AOV": [
+    {
+      "name": "None",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "-",
+      "max": "-",
+      "description": "프롬프트에 의존"
+    },
+    {
+      "name": "광각 스냅",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "24mm",
+      "max": "35mm",
+      "description": "스냅사진, 다큐멘터리, 풍경에 적합"
+    },
+    {
+      "name": "인물 스냅",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "",
+      "max": "50mm",
+      "description": "자연스럽고 왜곡없음 (인물, 일상 스냅)"
+    },
+    {
+      "name": "초광각",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "",
+      "max": "20mm",
+      "description": "풍경, 건축물, 인테리어와 같이 극적인 원근감과 넓은 공간감에 적합"
+    },
+    {
+      "name": "망원",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "70mm",
+      "max": "200mm",
+      "description": "얕은 심도로 인물 강조 (공연 등)"
+    },
+    {
+      "name": "초망원",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "300mm",
+      "max": "500mm",
+      "description": "먼 거리의 피사체를 당겨서 촬영 (야생동물, 스포츠)"
+    }
+  ],
+  "APT": [
+    {
+      "name": "None",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "-",
+      "max": "-",
+      "description": "프롬프트에 의존"
+    },
+    {
+      "name": "최대 개방",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "f/1.2",
+      "max": "f/2.0",
+      "description": "야간 촬영, 인물 감성, 실내 촬영에 적합"
+    },
+    {
+      "name": "중간 개방",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "f/4",
+      "max": "f/8",
+      "description": "스위트 스팟. 스냅/정물/인물/풍경에 적합"
+    },
+    {
+      "name": "조리개 조임",
+      "min_angle": "-",
+      "max_angle": "-",
+      "min": "f/11",
+      "max": "f/22",
+      "description": "대규모 풍경 사진, 가로등 빛 갈라짐 연출."
+    }
+  ]
+}
