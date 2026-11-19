@@ -37,7 +37,7 @@ Positive Prompt와 함께 사용하며, join strings / Text Concatenate 노드�
 | **피사체 유형**      | 피사체의 유형은 '인물', '제품', '장소' 로 나뉘며, '인물'과 '장소'는 카메라 높이가 190cm 를 기준으로 설정됩니다.<br>'제품'은 카메라 높이가 20cm 를 기준으로 설정됩니다.                                                                                                                                                                |
 | **카메라 앵글**      | 피사체를 바라보는 카메라의 촬영 각도를 조정합니다.<br>카메라를 드래그하여 조정할 수 있으며, 사전 설정된 프리셋은 다음과 같습니다.<br>**Bird-eye-View / High Angle / Slight High Angle / Eye Level / Slight Low Angle / Low Angle / Worm's-eye-View**                                                                              |
 | **360°앵글**      | 피사체를 중심에 두고 360° 반경에서 카메라의 촬영 위치를 조정합니다.<br>카메라를 드래그하여 조정할 수 있으며, 사전 설정된 프리셋은 다음과 같습니다.<br>**Front / Front-Right / Right / Rear-Right / Back / Rear-Left / Left / Front-Left**                                                                                              |
-| **초점 거리**       | 초점 거리로 표현하였지만 렌즈 구경과 같습니다.<br>사전 설정된 프리셋은 다음과 같습니다.<br>**광각 스냅(24mm-35mm) / 인물 스냅(50mm) / 초광각(20mm) / 망원(70mm-200mm) / 초망원(300mm-500mm)**<br>※ 이미지 생성 프롬프트의 해석 상 ***<font color="#c0504d">투영 공간이 실내이거나 주변에 사물이 있는 것으로 해석되면 '망원', '초망원' 모드는 미적용되는 사례가 있음</font>***을 확인하였습니다. |
+| **초점 거리**       | 초점 거리로 표현하였지만 렌즈 구경과 같습니다.<br>사전 설정된 프리셋은 다음과 같습니다.<br>**매크로 / 광각 스냅(24mm-35mm) / 인물 스냅(50mm) / 초광각(20mm) / 망원(70mm-200mm) / 초망원(300mm-500mm)**<br>※ 이미지 생성 프롬프트의 해석 상 ***<font color="#c0504d">투영 공간이 실내이거나 주변에 사물이 있는 것으로 해석되면 '망원', '초망원' 모드는 미적용되는 사례가 있음</font>***을 확인하였습니다. |
 | **조리개**         | 카메라로 들어오는 빛의 양을 조정합니다.<br>사전 설정된 프리셋은 다음과 같습니다.<br>**최대 개방(f/1.2-f2.0) / 중간 개방(f/4-f/8) / 조리개 조임(f/11-f/22)**<br>1) '최대 개방'은 야간 촬영, 인물 감성샷, 실내 촬영에 적합합니다.<br>2) '중간 개방'은 Sweet Spot 으로 인물/정물/풍경 스냅 이미지에 적합합니다.<br>3) '조리개 조임'은 대규모 풍경 사진, 가로등 또는 광원의 빛 갈라짐 연출 등에 적합합니다.     |
 | **사용자 설정**      | 위 기능항목에서 설정된 값은 각 항목에 표시되며, 직접 수정할 수 있습니다.                                                                                                                                                                                                                                  |
 | **배경 흐림**       | 프롬프트에서 특정 오브제에 포커싱 선언을 하지 않는 한 카메라는 피사체를 향하며, 이때 뒷 배경을 흐리게 할 지 선택합니다.<br>- **<font color="#c0504d">RED</font>**: Blur Off<br>- **<font color="#00b050">GREEN</font>**: Blur On                                                                                              |
@@ -60,6 +60,17 @@ Positive Prompt와 함께 사용하며, join strings / Text Concatenate 노드�
 <img width="1336" height="752" alt="k_0_02" src="https://github.com/user-attachments/assets/25b7c5ca-2562-46f6-8971-6d14109bcf9a" />
 <img width="1336" height="752" alt="k_0_01" src="https://github.com/user-attachments/assets/46305545-b953-46ec-87f0-9776e2523de3" />
 <img width="1336" height="752" alt="k_0" src="https://github.com/user-attachments/assets/e8d5c6d5-55d0-4e15-9a65-fa6febbac24b" />
+<img width="1336" height="752" alt="k_0_15" src="https://github.com/user-attachments/assets/5a20a909-996f-4abc-ae60-0c07008b365c" />
+<img width="1336" height="752" alt="k_0_14" src="https://github.com/user-attachments/assets/d23fb69f-e082-4ee2-8875-dd5efd856a47" />
+<img width="1336" height="752" alt="k_0_13" src="https://github.com/user-attachments/assets/1c2bb1cd-028f-42cf-82f9-8a7bafb5c2b7" />
+<img width="848" height="1184" alt="k_0_05" src="https://github.com/user-attachments/assets/8cf9e3d1-d734-4f3d-bd5a-7ea11f4bdc52" />
+
+
+## 릴리즈 수정
+
+v0.2.0 에서 앵글 조정 시 '거리감'이 되었다 안되었다 하는 문제가 있었습니다.
+Krea2 관련 자료를 찾아봐도 명확한 기준이 없고, 프롬프트 작성자 마다 피사체의 크기를 어떻게 설정하는지 알 수가 없어서 피사체 유형 별 기준값에 대하여 거리에 따른 축소/확대 정도를 캔버스(화면) 내 피사체가 차지하는 비율을 조정하는 방식으로 수정했습니다.
+마찬가지로, 매크로 모드를 추가했습니다.  =>  매크로 모드는 작성하시는 프롬프트에서 상반신 또는 특정 부위나 지점을 명확히 선언하는 경우에 적용이 잘 됩니다.
 
 
 ## 만든 이유
