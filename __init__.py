@@ -1,5 +1,8 @@
-"""Camera Angle View v0.2.0: 
+"""Camera Angle View v0.3.0:
 카메라 앵글 조정 노드 : Krea2 최적화 / Standard(SD/ZTB/Qwen)
+- 화면 점유율(subject_ratio) 기반 거리감 및 shot_scale 알고리즘 수정.
+- 거리 우선 자동 초점거리(AOV) 추천 로직 (Custom/None 수동 유지, 백엔드 자동 동기화) 처리.
+- 매크로/초근접(Macro / Close-up, 90mm) 렌즈 모드 추가
 created by ACKMAN in Jeju-island"""
 import hashlib
 import json
@@ -23,7 +26,12 @@ DEFAULT = {
     "distance": "1.0",
     "language": "en",
     "profile": "krea2",
+    "roll": 0,
+    "blur": False,
 }
+
+MACRO_AOV_NAMES = ("매크로/초근접", "Macro / Close-up", "매크로", "Macro")
+
 
 def unique_object(pairs):
     result = {}
@@ -90,33 +98,131 @@ def angles(state):
     )
 
 
-def shot_scale(distance_m, focal_mm, target):
-    frame_h = float(distance_m) * 24.0 / float(focal_mm)
+def recommend_lens_for_distance(distance_m, target):
+    """거리 우선 자동 초점거리(AOV) 추천 로직."""
+    d = float(distance_m)
+    if d <= 0.6:
+        return ("매크로/초근접", 90.0)
+    if target == "Place":
+        if d <= 3.0:
+            return ("초광각", 20.0)
+        if d <= 8.0:
+            return ("광각 스냅", 28.0)
+        return ("인물 스냅", 50.0)
+    if d <= 1.8:
+        return ("광각 스냅", 35.0)
+    if d <= 4.5:
+        return ("인물 스냅", 50.0)
+    if d <= 12.0:
+        return ("망원", 105.0)
+    return ("초망원", 200.0)
+
+
+def resolve_focal(state, distance_m, target):
+    """Custom/None 수동 설정은 그대로 유지.
+    일반 프리셋 상태에서는 백엔드에서도 거리 우선 추천 렌즈를 안전하게 동기화."""
+    aov = state.get("AOV", DEFAULT["AOV"])
+    focal = read_number(state, "focal", 1, 5000)
+    if aov in ("Custom", "None"):
+        return aov, focal, False
+    rec_aov, rec_focal = recommend_lens_for_distance(distance_m, target)
+    return rec_aov, rec_focal, True
+
+
+def camera_geometry(distance_m, tilt_deg, target):
+    d = float(distance_m)
+    rad = math.radians(tilt_deg)
+    base_h = 0.5 if target == "Product" else 1.6
+    cam_h_m = max(0.0, base_h - d * math.sin(rad))
+    horiz_m = abs(d * math.cos(rad))
+    return cam_h_m, horiz_m
+
+
+def shot_scale(distance_m, focal_mm, target, is_macro=False):
+    d = float(distance_m)
+    frame_h = d * 24.0 / float(focal_mm)
+    subj_h = 1.65 if target == "Human" else (0.35 if target == "Product" else 4.0)
+    ratio = subj_h / max(frame_h, 1e-6)
+
+    if is_macro or (d <= 0.6 and ratio >= 1.8):
+        if target == "Human":
+            return (
+                "Extreme macro close-up shot",
+                "tightly filling the entire frame with fine skin, eye, or facial details from very close range",
+                ratio,
+                "macro",
+            )
+        return (
+            "Extreme macro close-up shot",
+            "tightly framed on fine surface textures and intricate details filling almost the entire frame",
+            ratio,
+            "macro",
+        )
+
     if target == "Human":
-        if frame_h >= 15.0:
-            return ("Extreme wide long shot", "the subject appears as a tiny, distant figure surrounded by vast open space")
-        if frame_h >= 6.0:
-            return ("Wide full-body shot", "the subject is seen head-to-toe as a small figure with expansive surroundings around them")
-        if frame_h >= 2.0:
-            return ("Full-body shot", "the entire figure from head to toe is visible with ample space around them")
-        if frame_h >= 1.2:
-            return ("Medium three-quarter shot", "framed from the knees up with balanced headroom")
-        if frame_h >= 0.7:
-            return ("Medium close-up shot", "framed from the chest up")
-        return ("Close-up shot", "tightly framed on the head and shoulders")
+        if ratio <= 0.18:
+            return (
+                "Extreme distant long shot",
+                "the subject appears as a tiny distant figure occupying less than one-fifth of the frame height, surrounded by vast empty open space and wide margins on all sides",
+                ratio,
+                "distant",
+            )
+        if ratio <= 0.42:
+            return (
+                "Distant wide full-body shot",
+                "the entire figure from head to toe appears as a small figure occupying roughly one-third of the frame height, with expansive surroundings and wide empty margins around them",
+                ratio,
+                "distant",
+            )
+        if ratio <= 0.72:
+            return (
+                "Wide full-body shot",
+                "the entire figure from head to toe is clearly visible occupying about half to two-thirds of the frame height, with generous breathing room and open environment around them",
+                ratio,
+                "wide",
+            )
+        if ratio <= 1.05:
+            return (
+                "Full-body shot",
+                "the full figure from head to toe fills most of the frame height with balanced margins above and below",
+                ratio,
+                "medium",
+            )
+        if ratio <= 1.55:
+            return (
+                "Medium three-quarter shot",
+                "framed from the knees up with balanced headroom",
+                ratio,
+                "medium",
+            )
+        if ratio <= 2.40:
+            return (
+                "Medium close-up shot",
+                "framed from the chest up, filling the frame closely",
+                ratio,
+                "close",
+            )
+        return (
+            "Close-up portrait shot",
+            "tightly framed on the head and shoulders filling the frame",
+            ratio,
+            "close",
+        )
+
     if target == "Product":
-        if frame_h >= 6.0:
-            return ("Wide shot", "the object sits small in the distance with expansive supporting surroundings")
-        if frame_h >= 1.5:
-            return ("Full product shot", "the entire object is visible resting on its supporting surface with room around it")
-        if frame_h >= 0.5:
-            return ("Medium close-up shot", "framed closely on the object showing its form and surface details")
-        return ("Macro close-up shot", "tightly framed on the object's surface texture and details")
-    if frame_h >= 15.0:
-        return ("Extreme wide establishing shot", "capturing the vast architectural or environmental expanse")
-    if frame_h >= 4.0:
-        return ("Wide shot", "showing the full spatial layout and surrounding structure")
-    return ("Medium architectural shot", "framed on the main structure, wall, or window opening")
+        if ratio <= 0.25:
+            return ("Distant wide shot", "the object sits small in the distance occupying a small portion of the frame with expansive supporting surroundings", ratio, "distant")
+        if ratio <= 0.60:
+            return ("Wide product shot", "the entire object is visible with wide surrounding space and ample margins around it", ratio, "wide")
+        if ratio <= 1.15:
+            return ("Full product shot", "the entire object rests cleanly in the frame with balanced room around it", ratio, "medium")
+        return ("Close-up product shot", "framed closely on the object showing its form and surface details", ratio, "close")
+
+    if ratio <= 0.30:
+        return ("Extreme wide establishing shot", "capturing the vast architectural or environmental expanse from far away", ratio, "distant")
+    if ratio <= 0.85:
+        return ("Wide establishing shot", "showing the full spatial layout and expansive surrounding structure", ratio, "wide")
+    return ("Medium architectural shot", "framed closely on the main structure, wall, or opening", ratio, "medium")
 
 
 def target_orientation(azimuth, tilt, target):
@@ -159,22 +265,110 @@ def target_orientation(azimuth, tilt, target):
     return table[idx]
 
 
-def dof_description(focal_mm, aperture_f, distance_m):
+def compute_dof(focal_mm, aperture_f, distance_m):
     coc = 0.03
     d_mm = float(distance_m) * 1000.0
     if d_mm <= focal_mm:
-        return f"Shot at f/{fmt(aperture_f)}: shallow depth of field, very narrow focus range; the background is softly blurred."
+        return 0.0
     hyperfocal = (focal_mm ** 2) / (aperture_f * coc) + focal_mm
-    near_mm = (hyperfocal * d_mm) / (hyperfocal + (d_mm - focal_mm))
     if d_mm >= hyperfocal:
-        return f"Shot at f/{fmt(aperture_f)}: deep depth of field, everything from the subject to the far background is in focus, no background blur."
+        return float("inf")
+    near_mm = (hyperfocal * d_mm) / (hyperfocal + (d_mm - focal_mm))
     far_mm = (hyperfocal * d_mm) / (hyperfocal - (d_mm - focal_mm))
-    total_dof_m = (far_mm - near_mm) / 1000.0
-    if total_dof_m >= 10.0:
-        return f"Shot at f/{fmt(aperture_f)}: deep depth of field, everything from the subject to the far background is in focus, no background blur."
+    return (far_mm - near_mm) / 1000.0
+
+
+def krea2_distance_elevation_phrase(distance_m, cam_h_m, tilt, focal, ref, distance_tier, is_macro):
+    d_val = float(distance_m)
+    h_str = f"{cam_h_m:.1f}"
+
+    if distance_tier == "distant":
+        dist_cue = f"Captured from far away (about {distance_m} meters from the {ref}), leaving wide open negative space around the small {ref}"
+    elif distance_tier == "wide":
+        dist_cue = f"Photographed from a generous distance of {distance_m} meters from the {ref}, with ample surrounding space visible"
+    elif distance_tier == "macro":
+        dist_cue = f"Captured at extreme close-up macro range ({distance_m} meters from the {ref}), magnifying fine micro-details"
+    elif distance_tier == "close":
+        dist_cue = f"Photographed at close range ({distance_m} meters from the {ref})"
+    else:
+        dist_cue = f"Photographed from a camera-to-{ref} distance of {distance_m} meters"
+
+    if tilt <= -10:
+        if cam_h_m >= 4.0:
+            elev = f"from a high elevated vantage point about {h_str} meters above the ground"
+        elif cam_h_m >= 2.2:
+            elev = f"from an elevated camera position about {h_str} meters above the ground"
+        else:
+            elev = f"from a slightly raised camera height about {h_str} meters off the ground"
+    elif tilt >= 10:
+        if cam_h_m <= 0.4:
+            elev = "from near ground level"
+        else:
+            elev = f"from a low camera position about {h_str} meters above the ground"
+    else:
+        elev = f"at a camera height of about {h_str} meters"
+
+    if is_macro:
+        persp = "with true 1:1 macro optical magnification and ultra-fine detail rendering"
+    elif focal >= 85 and d_val >= 4.0:
+        persp = "with strong telephoto perspective compression flattening the background"
+    elif focal >= 70:
+        persp = "with noticeable telephoto compression"
+    elif focal <= 28:
+        persp = "with pronounced wide-angle spatial depth and expanded surroundings"
+    else:
+        persp = "with natural perspective proportions"
+
+    return f"{dist_cue}, {elev}, {persp}."
+
+
+def dof_description_krea2(focal_mm, aperture_f, distance_m, distance_tier, blur_override=False):
+    total_dof_m = compute_dof(focal_mm, aperture_f, distance_m)
+    f_str = fmt(aperture_f)
+
+    if blur_override:
+        if distance_tier == "distant":
+            return (
+                f"Shot at f/{f_str}, keeping the distant subject crisp while the far background "
+                f"softens gently without losing the wide sense of distance."
+            )
+        return (
+            f"Shot at f/{f_str} with shallow depth of field, keeping the subject in crisp focus "
+            f"while rendering the background in soft creamy bokeh."
+        )
+
+    if total_dof_m == 0.0:
+        return (
+            f"Shot at f/{f_str} with razor-thin shallow depth of field, "
+            f"crisp focus on the subject and a softly blurred background."
+        )
+    if math.isinf(total_dof_m) or total_dof_m >= 10.0:
+        return (
+            f"Shot at f/{f_str} with deep depth of field, keeping both the subject "
+            f"and the distant background sharply resolved across the frame."
+        )
     if total_dof_m < 0.8:
-        return f"Shot at f/{fmt(aperture_f)}: shallow depth of field, the subject is sharp within about {total_dof_m:.1f} meters; the background is softly blurred."
-    return f"Shot at f/{fmt(aperture_f)}: moderate depth of field, the subject is sharp within about {total_dof_m:.1f} meters; the background is slightly soft."
+        return (
+            f"Shot at f/{f_str} with shallow depth of field (focus zone about {total_dof_m:.1f} meters), "
+            f"isolating the subject sharply against a softly blurred background."
+        )
+    return (
+        f"Shot at f/{f_str} with moderate depth of field (focus zone about {total_dof_m:.1f} meters), "
+        f"keeping the subject sharp while the far background gently softens."
+    )
+
+
+def dof_tags_standard(focal_mm, aperture_f, distance_m, distance_tier, blur_override=False):
+    if blur_override:
+        if distance_tier == "distant":
+            return "distant subject in focus, slightly soft far background"
+        return "shallow depth of field, blurred background, bokeh"
+    total_dof_m = compute_dof(focal_mm, aperture_f, distance_m)
+    if total_dof_m == 0.0 or total_dof_m < 0.8:
+        return "shallow depth of field, blurred background"
+    if math.isinf(total_dof_m) or total_dof_m >= 10.0:
+        return "deep depth of field, sharp background"
+    return "moderate depth of field, slightly soft background"
 
 
 def make_prompt(value):
@@ -182,13 +376,18 @@ def make_prompt(value):
     target = state.get("Target", DEFAULT["Target"])
     distance = distance_text(state.get("distance", DEFAULT["distance"]))
     tilt, azimuth = angles(state)
-    focal = read_number(state, "focal", 1, 5000)
-    profile = state.get("profile", DEFAULT["profile"])
+    profile = str(state.get("profile", DEFAULT["profile"])).lower()
+    roll = int(round(float(state.get("roll", 0) or 0)))
+    blur = bool(state.get("blur", False))
+
+    aov, focal, _ = resolve_focal(state, distance, target)
+    is_macro = aov in MACRO_AOV_NAMES
+
+    cam_h_m, _ = camera_geometry(distance, tilt, target)
+    shot_title, shot_detail, ratio, distance_tier = shot_scale(distance, focal, target, is_macro=is_macro)
 
     if profile == "standard":
         degree = "degree" if abs(tilt) == 1 else "degrees"
-        base_h = 0.5 if target == "Product" else 1.6
-        cam_h_m = max(0.0, base_h - float(distance) * math.sin(math.radians(tilt)))
         height_cm = fmt(cam_h_m * 100.0)
         if tilt < 0:
             ang_str = f"Camera tilted downward at {abs(tilt)} {degree} from horizontal"
@@ -196,18 +395,42 @@ def make_prompt(value):
             ang_str = f"Camera tilted upward at {tilt} {degree} from horizontal"
         else:
             ang_str = "Camera directed horizontally at 0 degrees"
+
+        dist_tag = ""
+        if distance_tier == "distant":
+            dist_tag = "far away, small distant subject, wide empty margins, "
+        elif distance_tier == "macro":
+            dist_tag = "macro photography, extreme close-up, "
+
         parts = [
-            f"{ang_str}, positioned {height_cm} cm above the ground.",
+            f"{shot_title}, {dist_tag}{ang_str}, positioned {height_cm} cm above the ground.",
             f"Subject azimuth {azimuth} degrees, {distance} meters from the camera, centered in the frame.",
         ]
-        if state.get("AOV", DEFAULT["AOV"]) != "None":
-            parts.append(f"Focal length {fmt(focal)}mm.")
+        if aov != "None":
+            if is_macro:
+                parts.append(f"Focal length {fmt(focal)}mm macro lens.")
+            else:
+                parts.append(f"Focal length {fmt(focal)}mm.")
         if state.get("APT", DEFAULT["APT"]) != "None":
-            parts.append(f"Aperture f/{fmt(read_number(state, 'aperture', 0.1, 128))}.")
+            aperture = read_number(state, "aperture", 0.1, 128)
+            parts.append(f"Aperture f/{fmt(aperture)}, {dof_tags_standard(focal, aperture, distance, distance_tier, blur)}.")
+        elif blur:
+            parts.append(
+                "slightly soft far background." if distance_tier == "distant" else "blurred background, shallow depth of field."
+            )
+
+        if roll != 0:
+            r_deg = "degree" if abs(roll) == 1 else "degrees"
+            strength = "strongly " if abs(roll) >= 20 else ""
+            parts.append(
+                f"Dutch angle, {strength}tilted horizon, camera rolled {abs(roll)} {r_deg} "
+                f"{'counterclockwise' if roll < 0 else 'clockwise'}."
+            )
+
+        text = " ".join(" ".join(part.split()) for part in parts if part.strip())
     else:
         ref = "scene" if target == "Place" else ("object" if target == "Product" else "subject")
         is_custom_angle = state.get("Angle", DEFAULT["Angle"]) == "Custom"
-        shot_title, shot_detail = shot_scale(distance, focal, target)
 
         if is_custom_angle:
             if tilt == 0:
@@ -218,7 +441,7 @@ def make_prompt(value):
                     angle_lead = f"from a steep {abs(tilt)}-degree high angle looking down from above"
                     angle_desc = (
                         f"The camera looks steeply downward at {abs(tilt)} degrees from above the {ref}; "
-                        "the top surfaces are clearly visible and the table or ground surface fills the background."
+                        "the top surfaces are clearly visible and the supporting ground surface fills the background."
                     )
                 elif tilt <= -30:
                     angle_lead = f"from a {abs(tilt)}-degree high angle looking down"
@@ -237,20 +460,18 @@ def make_prompt(value):
                     angle_lead = f"from a steep {tilt}-degree low angle looking up from below"
                     angle_desc = (
                         f"The camera looks steeply upward at {tilt} degrees from below, "
-                        f"so the {ref} rises above against the sky or ceiling."
+                        f"so the {ref} rises prominently against the upper background."
                     )
                 else:
                     angle_lead = f"from a {tilt}-degree low angle looking upward"
-                    angle_desc = (
-                        f"The camera is tilted upward at {tilt} degrees looking up toward the {ref}."
-                    )
+                    angle_desc = f"The camera is tilted upward at {tilt} degrees looking up toward the {ref}."
         else:
             if tilt == -90:
                 angle_lead = "from a direct top-down overhead angle"
                 angle_desc = f"The camera points straight down at 90 degrees, perpendicular to the ground, showing the {ref} from directly above."
             elif tilt <= -75:
                 angle_lead = "from a near-overhead high angle"
-                angle_desc = f"The camera looks steeply down at the {ref} from above, with the ground or table surface filling the background."
+                angle_desc = f"The camera looks steeply down at the {ref} from above, with the ground surface filling the background."
             elif tilt <= -45:
                 angle_lead = "from a strong high angle"
                 angle_desc = f"The camera is elevated and looks down at {abs(tilt)} degrees at the {ref}, showing its upper surfaces."
@@ -268,14 +489,36 @@ def make_prompt(value):
                 angle_desc = f"The camera looks steeply upward at {tilt} degrees toward the {ref}."
             else:
                 angle_lead = "from an extreme worm's-eye view"
-                angle_desc = f"The camera is on the ground looking steeply upward, making the {ref} rise above with pronounced upward foreshortening."
+                angle_desc = f"The camera is near the ground looking steeply upward, making the {ref} rise above with pronounced upward foreshortening."
 
-        parts = [f"{shot_title} {angle_lead}.", angle_desc]
+        if roll != 0:
+            r_deg = "degree" if abs(roll) == 1 else "degrees"
+            side = "left" if roll < 0 else "right"
+            strength = "strongly " if abs(roll) >= 20 else ""
+            dutch_desc = (
+                f"Dutch angle, canted frame with a {strength}tilted diagonal horizon slanted "
+                f"{abs(roll)} {r_deg} to the {side} and tilted vertical lines"
+            )
+            if "The camera is upright with a level horizon, " in angle_desc:
+                angle_desc = angle_desc.replace(
+                    "The camera is upright with a level horizon, ",
+                    f"{dutch_desc}; the camera is ",
+                )
+            else:
+                angle_desc = f"{angle_desc} {dutch_desc}."
+
         orientation = target_orientation(azimuth, tilt, target)
-        parts.append(f"The {ref} is {orientation}, centered in the frame; {shot_detail}.")
+        parts = [
+            f"{shot_title} {angle_lead}.",
+            angle_desc,
+            krea2_distance_elevation_phrase(distance, cam_h_m, tilt, focal, ref, distance_tier, is_macro),
+            f"The {ref} is {orientation}, centered in the frame; {shot_detail}.",
+        ]
 
-        if state.get("AOV", DEFAULT["AOV"]) != "None":
-            if focal <= 28:
+        if aov != "None":
+            if is_macro:
+                parts.append(f"Shot with a {fmt(focal)}mm macro lens.")
+            elif focal <= 28:
                 parts.append(f"Shot with a {fmt(focal)}mm wide-angle lens.")
             elif focal >= 70:
                 parts.append(f"Shot with a {fmt(focal)}mm telephoto lens.")
@@ -284,9 +527,14 @@ def make_prompt(value):
 
         if state.get("APT", DEFAULT["APT"]) != "None":
             aperture = read_number(state, "aperture", 0.1, 128)
-            parts.append(dof_description(focal, aperture, distance))
+            parts.append(dof_description_krea2(focal, aperture, distance, distance_tier, blur))
+        elif blur:
+            parts.append(
+                "Soft distant background separation." if distance_tier == "distant" else "Shallow depth of field with a softly blurred background."
+            )
 
-    text = " ".join(" ".join(part.split()) for part in parts if part.strip())
+        text = " ".join(" ".join(part.split()) for part in parts if part.strip())
+
     if not text.isascii():
         raise ValueError("Camera Angle View: internal non-ASCII output")
     return text
@@ -319,39 +567,6 @@ class CameraAngleView:
 
     def generate(self, camera_state):
         prompt_str = make_prompt(camera_state)
-        try:
-            st = json.loads(camera_state) if isinstance(camera_state, str) else (camera_state or {})
-        except Exception:
-            st = {}
-        prof = str(st.get("profile", "krea2")).lower()
-        roll = int(round(float(st.get("roll", 0) or 0)))
-        blur = bool(st.get("blur", False))
-        extra = []
-        if roll != 0:
-            r_deg = "degree" if abs(roll) == 1 else "degrees"
-            side = "left" if roll < 0 else "right"
-            strength = "strongly " if abs(roll) >= 20 else ""
-            if prof == "krea2":
-                prompt_str = prompt_str.replace(
-                    "The camera is upright with a level horizon, ",
-                    f"Dutch angle, canted frame with a {strength}tilted diagonal horizon slanted {abs(roll)} {r_deg} to the {side} and tilted vertical lines; the camera is "
-                ).replace(
-                    "The camera is upright with a level horizon.",
-                    f"Dutch angle, canted frame with a {strength}tilted diagonal horizon slanted {abs(roll)} {r_deg} to the {side} and tilted vertical lines."
-                )
-                if "Dutch angle" not in prompt_str:
-                    extra.append(f"Dutch angle, canted frame with a {strength}tilted diagonal horizon slanted {abs(roll)} {r_deg} to the {side} and tilted vertical lines.")
-            else:
-                extra.append(f"Dutch angle, {strength}tilted horizon, camera rolled {abs(roll)} {r_deg} {'counterclockwise' if roll < 0 else 'clockwise'}")
-        if blur:
-            prompt_str = prompt_str.replace(", no background blur.", ".").replace(", no background blur", "")
-            if prof == "krea2":
-                extra.append("Softly blurred background with shallow depth of field.")
-            else:
-                extra.append("blurred background, shallow depth of field")
-        if extra:
-            sep = " " if prof == "krea2" else ", "
-            prompt_str = f"{prompt_str}{sep}{sep.join(extra)}"
         return (prompt_str,)
 
 
