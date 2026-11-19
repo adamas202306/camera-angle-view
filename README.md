@@ -66,7 +66,7 @@ Positive Prompt와 함께 사용하며, join strings / Text Concatenate 노드�
 <img width="848" height="1184" alt="k_0_05" src="https://github.com/user-attachments/assets/8cf9e3d1-d734-4f3d-bd5a-7ea11f4bdc52" />
 
 
-## 릴리즈 수정
+## 릴리즈 v0.3.0 수정
 
 v0.2.0 에서 앵글 조정 시 '거리감'이 되었다 안되었다 하는 문제가 있었습니다.
 Krea2 관련 자료를 찾아봐도 명확한 기준이 없고, 프롬프트 작성자 마다 피사체의 크기를 어떻게 설정하는지 알 수가 없어서 피사체 유형 별 기준값에 대하여 거리에 따른 축소/확대 정도를 캔버스(화면) 내 피사체가 차지하는 비율을 조정하는 방식으로 수정했습니다.
