@@ -1,4 +1,4 @@
-// Camera angle View.js
+// Camera angle View.js for camera angle view.
 
 import {
     app
@@ -43,6 +43,33 @@ try {
 } catch (e) {
     console.warn("Camera Angle View: presets.json fallback active", e);
 }
+function ensureMacroPreset() {
+    if (Array.isArray(presets.AOV) && !presets.AOV.some(p => p.name === "매크로/초근접")) {
+        presets.AOV.push({
+            name: "매크로/초근접",
+            min: "90",
+            max: "90",
+            description: "초근접 디테일, 피부·제품 질감 극대화 (90mm Macro)."
+        });
+    }
+}
+ensureMacroPreset();
+
+function recommendAovForDistance(distanceVal, target) {
+    const d = Number(distanceVal);
+    if (!Number.isFinite(d)) return null;
+    if (d <= 0.6) return { aov: "매크로/초근접", focal: 90 };
+    if (target === "Place") {
+        if (d <= 3.0) return { aov: "초광각", focal: 20 };
+        if (d <= 8.0) return { aov: "광각 스냅", focal: 28 };
+        return { aov: "인물 스냅", focal: 50 };
+    }
+    if (d <= 1.8) return { aov: "광각 스냅", focal: 35 };
+    if (d <= 4.5) return { aov: "인물 스냅", focal: 50 };
+    if (d <= 12.0) return { aov: "망원", focal: 105 };
+    return { aov: "초망원", focal: 200 };
+}
+
 const defaults = {
     Target: "Human",
     Angle: "Custom",
@@ -224,6 +251,7 @@ const words = {
             "초광각": "Ultra-wide Angle",
             "망원": "Telephoto",
             "초망원": "Super-telephoto",
+            "매크로/초근접": "Macro / Close-up",
             "최대 개방": "Wide Open",
             "중간 개방": "Moderate Aperture",
             "조리개 조임": "Stopped Down",
@@ -240,6 +268,7 @@ const descriptionsEN = {
     "초광각": "Wide spaces and dramatic perspective for landscapes and architecture.",
     "망원": "Emphasize subjects for portraits and performances.",
     "초망원": "Distant subjects, wildlife and sports.",
+    "매크로/초근접": "Extreme close-up details and fine surface textures (90mm Macro).",
     "최대 개방": "Night scenes, portraits and interiors.",
     "중간 개방": "General-purpose snapshots, still life, portraits and landscapes.",
     "조리개 조임": "Landscapes and starburst light effects."
@@ -497,6 +526,13 @@ app.registerExtension({
             }
             state.distance = normalizeDistance(distanceInput.value);
             distanceInput.value = state.distance;
+            if (state.AOV !== "Custom" && state.AOV !== "None") {
+                const rec = recommendAovForDistance(state.distance, state.Target);
+                if (rec && presets.AOV.some(p => p.name === rec.aov)) {
+                    state.AOV = rec.aov;
+                    state.focal = rec.focal;
+                }
+            }
             distanceInput.setCustomValidity("");
             distanceInput.style.borderColor = "#bbb";
             commit();
@@ -869,6 +905,13 @@ app.registerExtension({
                 x = (e.clientX - b.left) * g.w / b.width;
             state.distance = distanceFromX(x, g.near, g.far);
             distanceInput.value = state.distance;
+            if (state.AOV !== "Custom" && state.AOV !== "None") {
+                const rec = recommendAovForDistance(state.distance, state.Target);
+                if (rec && presets.AOV.some(p => p.name === rec.aov)) {
+                    state.AOV = rec.aov;
+                    state.focal = rec.focal;
+                }
+            }
             distanceInput.setCustomValidity("");
             distanceInput.style.borderColor = "#bbb";
             commit();
